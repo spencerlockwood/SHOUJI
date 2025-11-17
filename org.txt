@@ -1,0 +1,37 @@
+shouji-project/
+│
+├── README.md
+├── LICENSE
+├── .gitignore
+├── requirements.txt          # python deps: edlib, numpy, pytest, etc.
+├── pyproject.toml / setup.py # optional; only if packaging the code
+│
+├── src/
+│   └── shouji/
+│       ├── __init__.py
+│       ├── shouji.py          # core algorithm (CPU reimplementation)
+│       ├── utils.py           # helpers: synthetic dataset gen, IO, timing
+│       └── evaluation.py      # runs accuracy, false accept/reject, timing
+│
+├── tests/
+│   ├── test_shouji_basic.py   # unit tests (exact matches, single edit, etc.)
+│   ├── test_shouji_edges.py   # edge cases: window boundaries, E=0, etc.
+│   └── test_evaluation.py     # tests for evaluation logic
+│
+├── data/
+│   ├── README.md              # instruction for downloading datasets
+│   ├── synthetic/             # scripts generate synthetic data here
+│   │   └── small_synth.tsv
+│   └── real/                  # empty; user downloads a small subset of ENA reads
+│
+├── scripts/
+│   ├── download_real_data.sh  # optional: ENA download helper
+│   ├── generate_synthetic.py  # creates synthetic seq pairs for testing
+│   └── run_evaluation.py      # runs evaluation pipeline on dataset
+│
+├── notebooks/
+│   └── Shouji_experiments.ipynb # Jupyter notebook for demonstration
+│
+└── .github/
+    └── workflows/
+        └── ci.yml             # GitHub Actions pipeline
