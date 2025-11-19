@@ -35,33 +35,3 @@ shouji-project/
 └── .github/
     └── workflows/
         └── ci.yml             # GitHub Actions pipeline
-
-
-
-
-next chatgpt message:
-
-
-I am now getting the following error when running the pipeline on github CI:
-
-Failed to build edlib
-error: failed-wheel-build-for-install
-
-× Failed to build installable wheels for some pyproject.toml based projects
-╰─> edlib
-Error: Process completed with exit code 1.
-
-
-I changed edlib==1.3.8 to edlib in the requirements.txt file, and it had no more issues installing dependencies. I am now I am getting this error the error below, though.
-
-Traceback:
-/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/importlib/__init__.py:126: in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-tests/test_evaluation.py:14: in <module>
-    from scripts.run_evaluation import evaluate_dataset
-E   ModuleNotFoundError: No module named 'scripts'
-=========================== short test summary info ============================
-ERROR tests/test_evaluation.py
-!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
-=============================== 1 error in 0.03s ===============================
-Error: Process completed with exit code 1.

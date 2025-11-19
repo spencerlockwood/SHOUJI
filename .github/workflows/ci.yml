@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: Shouji CI Pipeline
 
 on:
   push:
@@ -10,24 +10,50 @@ jobs:
   build-test-evaluate:
     runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4   # Updated to v4 (best practice)
+    env:
+      PYTHONPATH: ${{ github.workspace }}
 
+    steps:
+    # ------------------------------------------------------------
+    # Checkout the repository
+    # ------------------------------------------------------------
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # ------------------------------------------------------------
+    # Install system dependencies (fixes edlib build failures)
+    # ------------------------------------------------------------
+    - name: Install system build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential python3-dev
+
+    # ------------------------------------------------------------
+    # Set up Python
+    # ------------------------------------------------------------
     - name: Set up Python
-      uses: actions/setup-python@v5   # Updated to v5
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
+    # ------------------------------------------------------------
+    # Install Python requirements
+    # ------------------------------------------------------------
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    # ------------------------------------------------------------
+    # Run pytest unit tests
+    # ------------------------------------------------------------
     - name: Run unit tests
       run: |
         pytest -v --maxfail=1
 
+    # ------------------------------------------------------------
+    # Generate synthetic dataset
+    # ------------------------------------------------------------
     - name: Generate synthetic dataset
       run: |
         python scripts/generate_synthetic.py \
@@ -36,6 +62,9 @@ jobs:
           --max_edits 10 \
           --out data/synthetic/ci_synth.tsv
 
+    # ------------------------------------------------------------
+    # Evaluate Shouji on the synthetic dataset
+    # ------------------------------------------------------------
     - name: Run evaluation on synthetic dataset
       run: |
         python scripts/run_evaluation.py \
@@ -43,8 +72,11 @@ jobs:
           --threshold 10 \
           --out ci_results.json
 
+    # ------------------------------------------------------------
+    # Upload evaluation artifact (v4: non-deprecated)
+    # ------------------------------------------------------------
     - name: Upload evaluation results
-      uses: actions/upload-artifact@v4   # UPDATED
+      uses: actions/upload-artifact@v4
       with:
         name: ci-results
         path: ci_results.json
