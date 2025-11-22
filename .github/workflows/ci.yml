@@ -14,69 +14,45 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}
 
     steps:
-    # ------------------------------------------------------------
-    # Checkout the repository
-    # ------------------------------------------------------------
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # ------------------------------------------------------------
-    # Install system dependencies (fixes edlib build failures)
-    # ------------------------------------------------------------
-    - name: Install system build dependencies
+    - name: Install system deps
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential python3-dev
 
-    # ------------------------------------------------------------
-    # Set up Python
-    # ------------------------------------------------------------
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    # ------------------------------------------------------------
-    # Install Python requirements
-    # ------------------------------------------------------------
-    - name: Install dependencies
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # ------------------------------------------------------------
-    # Run pytest unit tests
-    # ------------------------------------------------------------
     - name: Run unit tests
-      run: |
-        pytest -v --maxfail=1
+      run: pytest -v --maxfail=1
 
-    # ------------------------------------------------------------
-    # Generate synthetic dataset
-    # ------------------------------------------------------------
     - name: Generate synthetic dataset
       run: |
         python scripts/generate_synthetic.py \
-          --num_pairs 1000 \
+          --num_pairs 2000 \
           --length 150 \
           --max_edits 10 \
           --out data/synthetic/ci_synth.tsv
 
-    # ------------------------------------------------------------
-    # Evaluate Shouji on the synthetic dataset
-    # ------------------------------------------------------------
-    - name: Run evaluation on synthetic dataset
+    - name: Run multi-threshold evaluation
       run: |
+        mkdir -p results
         python scripts/run_evaluation.py \
           --input data/synthetic/ci_synth.tsv \
-          --threshold 10 \
-          --out ci_results.json
+          --thresholds 1 2 3 5 7 10 \
+          --out_dir results
 
-    # ------------------------------------------------------------
-    # Upload evaluation artifact (v4: non-deprecated)
-    # ------------------------------------------------------------
-    - name: Upload evaluation results
+    - name: Upload results
       uses: actions/upload-artifact@v4
       with:
-        name: ci-results
-        path: ci_results.json
+        name: shouji-results
+        path: results/

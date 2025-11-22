@@ -3,80 +3,71 @@
 run_evaluation.py
 -----------------
 
-Run the Shouji filter over a synthetic dataset and compute:
+Evaluate the Shouji filter over a dataset and produce JSON metrics.
 
-  - False accept rate
-  - False reject rate
-  - Overall accuracy
-  - Runtime and throughput
+Supports:
+  - Single threshold mode (--threshold)
+  - Multi-threshold sweep (--thresholds E1 E2 E3 ...)
 
-The script expects a TSV file with the columns:
-    pattern   reference   true_edits
+Output:
+  One JSON file per threshold, written into --out_dir.
 
-Usage:
+Example:
     python scripts/run_evaluation.py \
-        --input data/synthetic/small_synth.tsv \
-        --out ci_results.json \
-        --threshold 10
+        --input data/synthetic/test.tsv \
+        --thresholds 1 2 3 5 7 10 \
+        --out_dir results/
 """
 
 import argparse
 import json
 import time
+import os
 
 import edlib
 from tqdm import tqdm
 
-# Import Shouji implementation
 from src.shouji.shouji import shouji_single
 
 
 def compute_edit_distance(p: str, t: str) -> int:
     """Return the Levenshtein edit distance using edlib."""
-    result = edlib.align(p, t, mode="NW")  # Needleman-Wunsch (global)
+    result = edlib.align(p, t, mode="NW")
     return result["editDistance"]
 
 
 def evaluate_dataset(input_tsv: str, threshold: int) -> dict:
-    """
-    Evaluate Shouji on a dataset and return metrics dict.
-    """
-    # Counters
+    """Evaluate Shouji at a specific threshold."""
     total = 0
-    true_similar = 0           # True edit distance <= threshold
-    true_dissimilar = 0        # > threshold
+    true_similar = 0
+    true_dissimilar = 0
     false_accept = 0
     false_reject = 0
     correct = 0
 
     start_time = time.time()
 
-    # Count lines first (for progress bar)
-    print("Counting dataset size...")
+    # Count lines for progress bar
     with open(input_tsv, "r") as f:
-        # Skip header
         next(f)
         num_lines = sum(1 for _ in f)
 
-    print(f"Dataset contains {num_lines} pairs.\n")
+    print(f"\nEvaluating threshold E={threshold} on {num_lines} pairs...")
 
     with open(input_tsv, "r") as f:
         header = next(f).strip().split("\t")
         if header != ["pattern", "reference", "true_edits"]:
-            raise ValueError(
-                "Input TSV must have header: pattern\\treference\\ttrue_edits"
-            )
+            raise ValueError("TSV header must be: pattern\treference\ttrue_edits")
 
-        for line in tqdm(f, total=num_lines, desc="Evaluating"):
-            pattern, reference, _ = line.strip().split("\t")
+        for line in tqdm(f, total=num_lines, desc=f"E={threshold}"):
+            p, t, _ = line.strip().split("\t")
 
-            # Apply Shouji filter
-            accept, _ = shouji_single(pattern, reference, E=threshold)
+            # Shouji filter decision
+            accept, _ = shouji_single(p, t, E=threshold)
 
-            # Compute true edit distance via edlib
-            true_dist = compute_edit_distance(pattern, reference)
+            # Ground truth distance
+            true_dist = compute_edit_distance(p, t)
 
-            # Track tallies
             total += 1
 
             if true_dist <= threshold:
@@ -92,14 +83,12 @@ def evaluate_dataset(input_tsv: str, threshold: int) -> dict:
                 else:
                     correct += 1
 
-    end_time = time.time()
-    elapsed = end_time - start_time
+    elapsed = time.time() - start_time
     throughput = total / elapsed if elapsed > 0 else 0.0
 
-    # Build metrics dictionary
-    metrics = {
-        "total_pairs": total,
+    return {
         "threshold": threshold,
+        "total_pairs": total,
         "true_similar": true_similar,
         "true_dissimilar": true_dissimilar,
         "false_accept": false_accept,
@@ -111,34 +100,38 @@ def evaluate_dataset(input_tsv: str, threshold: int) -> dict:
         "pairs_per_second": throughput,
     }
 
-    return metrics
-
 
 def main():
-    parser = argparse.ArgumentParser(description="Evaluate Shouji on a synthetic dataset.")
-    parser.add_argument("--input", type=str, required=True,
-                        help="Input TSV dataset (pattern, reference, true_edits).")
-    parser.add_argument("--threshold", type=int, default=10,
-                        help="Edit distance threshold E.")
-    parser.add_argument("--out", type=str, default="evaluation_results.json",
-                        help="Where to write the metrics JSON file.")
+    parser = argparse.ArgumentParser(description="Evaluate Shouji over a dataset.")
+    parser.add_argument("--input", required=True, type=str)
+    parser.add_argument("--threshold", type=int, default=None,
+                        help="Single threshold mode.")
+    parser.add_argument("--thresholds", nargs="*", type=int,
+                        help="List of thresholds, e.g. --thresholds 1 2 5 10")
+    parser.add_argument("--out_dir", type=str, default="results",
+                        help="Directory to write output JSON files.")
 
     args = parser.parse_args()
 
-    print(f"Running evaluation with threshold E={args.threshold}")
-    print(f"Loading dataset: {args.input}")
+    os.makedirs(args.out_dir, exist_ok=True)
 
-    metrics = evaluate_dataset(args.input, args.threshold)
+    # Determine thresholds
+    if args.threshold is not None:
+        thresholds = [args.threshold]
+    elif args.thresholds:
+        thresholds = args.thresholds
+    else:
+        raise ValueError("You must specify --threshold or --thresholds.")
 
-    print("\nEvaluation complete:")
-    for k, v in metrics.items():
-        print(f"  {k}: {v}")
+    # Run evaluation for each threshold
+    for E in thresholds:
+        metrics = evaluate_dataset(args.input, E)
 
-    # Write metrics to JSON
-    with open(args.out, "w") as f:
-        json.dump(metrics, f, indent=2)
+        out_path = os.path.join(args.out_dir, f"ci_results_E{E}.json")
+        with open(out_path, "w") as f:
+            json.dump(metrics, f, indent=2)
 
-    print(f"\nResults saved to: {args.out}")
+        print(f"Saved: {out_path}")
 
 
 if __name__ == "__main__":
