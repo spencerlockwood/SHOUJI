@@ -1,0 +1,13 @@
+{
+  "threshold": 2,
+  "total_pairs": 2000,
+  "true_similar": 566,
+  "true_dissimilar": 1434,
+  "false_accept": 189,
+  "false_reject": 0,
+  "false_accept_rate": 0.13179916317991633,
+  "false_reject_rate": 0.0,
+  "overall_accuracy": 0.9055,
+  "runtime_seconds": 1.8715157508850098,
+  "pairs_per_second": 1068.652507495185
+}
